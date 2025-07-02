@@ -15,34 +15,47 @@ GUPSHUP_BOT_NAME = 'AbhinavBotGupShup'
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
-    """
-    This webhook receives incoming messages from Gupshup.
-    """
     if request.method == 'GET':
-        # Gupshup may send a GET request to verify the webhook URL
         return jsonify({"status": "ok"}), 200
 
-    # Process incoming POST request (actual messages)
-    data = request.get_json()
-    print("Incoming Webhook Data:", json.dumps(data, indent=2))
-
     try:
-        # Safely extract message details using .get() to avoid errors
-        message_data = data.get('entry', [{}])[0].get('changes', [{}])[0].get('value', {}).get('messages', [{}])[0]
+        data = request.get_json()
+        print("📥 Incoming Webhook Raw Data:")
+        print(json.dumps(data, indent=2))
 
-        if message_data and message_data.get('from') and message_data.get('text'):
-            sender = message_data['from']
-            message_text = message_data['text']['body'].lower().strip()
+        # Try extracting message
+        message_data = (
+            data.get('entry', [{}])[0]
+                .get('changes', [{}])[0]
+                .get('value', {})
+                .get('messages', [{}])[0]
+        )
+
+        if message_data:
+            print("📦 Extracted message_data:", json.dumps(message_data, indent=2))
+        else:
+            print("⚠️ message_data is empty or not structured as expected.")
+
+        # Validate and extract message content
+        sender = message_data.get('from')
+        text_obj = message_data.get('text')
+        if sender and text_obj:
+            message_text = text_obj.get('body', '').lower().strip()
             print(f"📩 Message received from {sender}: {message_text}")
 
-            # Simple bot logic
+            # Bot logic
             if "who are you" in message_text:
                 send_reply(sender, "I am a bot created by Abhinav.")
             else:
                 send_reply(sender, f"You said: {message_text}")
+        else:
+            print("⚠️ Either 'from' or 'text' key missing in message_data.")
 
-    except (IndexError, KeyError, TypeError) as e:
-        print(f"⚠️ Error processing webhook data: {e}. Data might be in an unexpected format.")
+    except Exception as e:
+        print("❌ Exception while processing webhook:")
+        print(str(e))
+        print("🪵 Full payload for debugging:")
+        print(json.dumps(request.get_json(), indent=2))
 
     return jsonify({'status': 'ok'}), 200
 
